@@ -96,6 +96,29 @@ void Transformation::handleInput() {
     // _rotateAngles[i] = ...
     // _scales[i] = ...
     // --------------------------------------------------
+
+    static int sign;
+    if (!sign) {
+        sign = 1;
+    } else if (_positions[0].y > 5.0f) {
+        sign = -1;
+    } else if (_positions[0].y < -5.0f) {
+        sign = 1;
+    }
+    _positions[0].y += sign * velocity.y * _deltaTime;
+
+    _rotateAngles[1] += angulerVelocity * _deltaTime * 10;
+    _rotateAngles[1] = fmod(_rotateAngles[1], 360.0f);
+
+    static int sclaeSign;
+    if (!sclaeSign) {
+        sclaeSign = 1;
+    } else if (_scales[2].x > 1.5f) {
+        sclaeSign = -1;
+    } else if (_scales[2].x < 0.3f) {
+        sclaeSign = 1;
+    }
+    _scales[2] += _scales[2] * (scaleRate * sclaeSign * _deltaTime);
 }
 
 void Transformation::renderFrame() {
@@ -146,6 +169,10 @@ void Transformation::renderFrame() {
         // @scale
         glm::mat4 scale = glm::mat4(1.0f);
         // ------------------------------------------------
+
+        translation = glm::translate(translation, _positions[i]);
+        rotation = glm::rotate(rotation, glm::radians(_rotateAngles[i]), _rotateAxis[i]);
+        scale = glm::scale(scale, _scales[i]);
 
         glm::mat4 model = translation * rotation * scale;
         _shader->setUniformMat4("model", model);
