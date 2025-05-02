@@ -137,32 +137,69 @@ void TextureMapping::initBlendShader() {
     // + lambert shading, i.e the color is affected by the light
     // write your code here
     // -----------------------------------------------------------------
+    // const char* fsCode =
+    //     "#version 330 core\n"
+    //     "in vec3 fPosition;\n"
+    //     "in vec3 fNormal;\n"
+    //     "in vec2 fTexCoord;\n"
+    //     "out vec4 color;\n"
+
+    //     "struct DirectionalLight {\n"
+    //     "    vec3 direction;\n"
+    //     "    vec3 color;\n"
+    //     "    float intensity;\n"
+    //     "};\n"
+
+    //     "struct Material {\n"
+    //     "    vec3 kds[2];\n"
+    //     "    float blend;\n"
+    //     "};\n"
+
+    //     "uniform Material material;\n"
+    //     "uniform DirectionalLight light;\n"
+    //     "uniform sampler2D mapKds[2];\n"
+
+    //     "void main() {\n"
+    //     "    color = vec4(material.kds[0], 1.0f);\n"
+    //     "}\n";
+    //----------------------------------------------------------------
+
     const char* fsCode =
         "#version 330 core\n"
         "in vec3 fPosition;\n"
         "in vec3 fNormal;\n"
         "in vec2 fTexCoord;\n"
         "out vec4 color;\n"
-
+        "\n"
         "struct DirectionalLight {\n"
         "    vec3 direction;\n"
         "    vec3 color;\n"
         "    float intensity;\n"
         "};\n"
-
+        "\n"
         "struct Material {\n"
         "    vec3 kds[2];\n"
         "    float blend;\n"
         "};\n"
-
+        "\n"
         "uniform Material material;\n"
         "uniform DirectionalLight light;\n"
         "uniform sampler2D mapKds[2];\n"
-
+        "\n"
+        "\n"
         "void main() {\n"
-        "    color = vec4(material.kds[0], 1.0f);\n"
-        "}\n";
-    //----------------------------------------------------------------
+        "    vec3 normal = normalize(fNormal);\n"
+        "    vec3 lightDir = normalize(-light.direction);\n"
+        "\n"
+        "    float lambert = max(dot(normal, lightDir), 0.0f);\n"
+        "    \n"
+        "    vec4 texColor0 = texture(mapKds[0], fTexCoord) * vec4(material.kds[0], 1.0f);\n"
+        "    vec4 texColor1 = texture(mapKds[1], fTexCoord) * vec4(material.kds[1], 1.0f);\n"
+        "    vec4 texColor = mix(texColor0, texColor1, material.blend);\n"
+        "\n"
+        "    color = texColor * vec4(light.color, 1.0f) * light.intensity * lambert;\n"
+        "\n"
+        "};\n";
 
     _blendShader.reset(new GLSLProgram);
     _blendShader->attachVertexShader(vsCode);
@@ -189,22 +226,40 @@ void TextureMapping::initCheckerShader() {
     // hint: use the fTexCoord to determine the color
     // modify your code here
     // --------------------------------------------------------------
+    // const char* fsCode =
+    //     "#version 330 core\n"
+    //     "in vec2 fTexCoord;\n"
+    //     "out vec4 color;\n"
+
+    //     "struct Material {\n"
+    //     "    vec3 colors[2];\n"
+    //     "    int repeat;\n"
+    //     "};\n"
+
+    //     "uniform Material material;\n"
+
+    //     "void main() {\n"
+    //     "    color = vec4(material.colors[0], 1.0f);\n"
+    //     "}\n";
+    //----------------------------------------------------------------
+
     const char* fsCode =
         "#version 330 core\n"
         "in vec2 fTexCoord;\n"
         "out vec4 color;\n"
-
+        "\n"
         "struct Material {\n"
         "    vec3 colors[2];\n"
         "    int repeat;\n"
         "};\n"
-
+        "\n"
         "uniform Material material;\n"
-
+        "\n"
         "void main() {\n"
-        "    color = vec4(material.colors[0], 1.0f);\n"
-        "}\n";
-    //----------------------------------------------------------------
+        "    vec2 uv = fTexCoord * material.repeat;\n"
+        "    float checker = mod(floor(uv.x) + floor(uv.y), 2.0);\n"
+        "    color = vec4(checker < 0.5 ? material.colors[0] : material.colors[1], 1.0);\n"
+        "};\n";
 
     _checkerShader.reset(new GLSLProgram);
     _checkerShader->attachVertexShader(vsCode);
@@ -278,6 +333,11 @@ void TextureMapping::renderFrame() {
         //----------------------------------------------------------------
         // ...
         //----------------------------------------------------------------
+
+        _blendMaterial->mapKds[0]->bind(0);
+        _blendMaterial->mapKds[1]->bind(1);
+        _blendShader->setUniformInt("mapKds[0]", 0);
+        _blendShader->setUniformInt("mapKds[1]", 1);
 
         break;
     case RenderMode::Checker:
